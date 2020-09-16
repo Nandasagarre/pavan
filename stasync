@@ -1,0 +1,122 @@
+Preface
+Problem statement: To design a meta-stable tolerable internal synchronizing system for synchronizing the external clock frequency with a local clock frequency.
+The report was made with the extracts of several interesting topics from different whitepapers, research/published papers. The references are at the end of the report.
+Contents  P1:Implementation of synchronizing system(1 and 2 level synchronizer) using verilog, between two different clock domains.  P2:Effect of meta-stability of on flip-flop in synchronizer.  P3:Probable solutions to tackle the problem of meta-stability.  P4:Timing analysis of synchronizer using d flip flop.
+1. Propagation delay(Tr and Tf)
+2. Set up and hold updation
+3. Aperture time
+4. Contamination delay(clock to output)
+5. propagation delay(clock to output)
+6. setup time constraint and hold time constraints
+-----------------------------------------------------------------------------------------------------------------------------------
+Description:
+This extract mainly focuses on the elimination of meta-stability internal synchronizing systems and timing analysis of the same.
+An internal synchronizing system is used to synchronize the external source or asynchronous clock with the local clock, in other words it sync between the two different clock domains.
+The figure1.0 is having an asynchronous clock signal and a local clock signal which are working at different frequencies and hence an internal sync system is obvious. Here a simple D flip flop is been used its corresponding timing diagram is also shown.
+------- (“A D-type flip-flop, the setup or hold times must be maintained. This means that for a short time before the clock edge (setup time) and for a short time afterward (hold time) the level on the D input must not change to ensure that the function of the flip-flop is executed correctly.
+If these conditions are not maintained, the flip-flop can become meta-stable.
+No defined state can be ensured on the Q outputs. After a time, the flip-flop goes into one of the two stable states, but it is impossible to predict which.
+These operating conditions for flip-flops can be maintained easily in synchronous circuits. But, with asynchronous circuits and in synchronizing circuits, violations of the operating conditions for D-ff are unavoidable. Concurrent read/write FIFOs that are driven by two systems working asynchronously to one another must perform internal synchronization of the asynchronous external signals”) ------ source https://www.ti.com/lit/an/scaa042a/scaa042a.pdf
+Fig 1.0 internal synchronizing system and its timing.
+There are no ideal flip-flops with a setup and hold time of zero, so there can be no synchronizing circuit that works faultlessly. The quality of a synchronizing circuit is indicated by its mean time between failures (MTBF). This is calculated from the frequency of the asynchronous signal (fin), the clock frequency of the synchronizing circuit (fclk), and the length of the critical time window (td). MTBF 1 /fin* fclk *td
+Example:
+For fclk = 1 MHz, fin of 1 kHz, and td = 30 ps:
+MTBF 1/ 1 kHz *1 MHz *30 ps
+33ns. Since for a undefined amount of time the flip-flop stays in meta-stable state which is unavoidable. The only thing that can is taken care of is trying to keep this MTBF as minimum as possible.
+In next coming section the design of this internal synchronizing system is been implemented using Xilinx tool.
+----------------------------------------------------------Part1-------------------------------------------------------------------
+Fig 1.1 shows the HDL implementation of system shown in figure 1.0
+Fig 1.1 the D flip-flop
+Module dff has two inputs aclk, and lclk represents the asynchronous clok and the loal cloks respectively. The q is the output.
+A traditional D flip flop implementation using behavioural modelling is implemented in the above module dff and saved as dff.v
+Fig 1.2 shows the test bench.
+Where lclk’(local clock)is given with a delay of 5ns and the aclk(asynchronous clock) with a delay 45ns.
+Note: It’s was indented to specify the delays in such a unusual way in order to represent that the system is working in two different clock frequencies.
+Fig 1.2 test bench of the system
+Fig 1.3 shows the RTL schematics.
+Fig 1.4 shows the waveform of the system
+The meta-stability at the initial state is clearly observed in the waveform.
+The timing violations are shown under the warnings. Shown in the figure 1.5
+Fig 1.5 and 1.6 wave form with timing violations warnings.
+-------------------------------------------------------part2----------------------------------------------------------------------
+The timing violations under this warning section represents the improper read of the data at the input which obviously leads the flip-flop to the meta-stable state. In reality, we cannot prevent metastability. We can only reduce its existence or make our designs such that the occurence of metastability does not affect the state machine.
+As said earlier, In reality, we cannot prevent metastability. We can only reduce its existence or make our designs such that the occurence of metastability does not affect the state machine.
+---------------------------------------------------------part3---------------------------------------------------------------------
+Here come’s some of the solutions to control the metastablity. Which makes the flip flop less prone to meta-stablity
+Solution 1 Making the designs as such synchronous as possible. Thus, by virtue of setup-hold requirements being met, metastability will not be much of an issue.
+Solution 2 Decreasing the frequency of system which results in less number of clock edges will mean less probability of data being captured during setup/hold window. However there is always a trade-off between the speed of system and making the design of metastablity tolerant system.
+Solution 3:
+Using two level synchronization figure 2.0(considered as the most probable solution) The most common way to make designs metastability tolerant is to add synchronizer stages. Doing this, we are allowing certain flip-flops in the design to go metastable, but not allowing their metastability to impact the design by propagating to later stages. However, this also does not guarantee perfect immunity to design failures, but reduces the occurent of design failures due to metastability to almost nil, if carefully designed.
+Here the second flip-flop can only go into a metastable state if the first flip-flop is already metastable.
+This metastability can considerably increase the delay of the first flip-flop.
+But, if the period of the clock signal is longer than the sum of the increased delay plus the setup time of the second flip-flop, the second flip-flop can never go into a metastable state.
+Fig 2.0 two level synchronizer and its corresponding waveforms
+Next section of this study focuses on the implementation of the two level synchronizer.
+Above fig shows the verilog code for two level synchronizer.
+RTL of the corresponding code of two level synchronizer
+Above figure is the test bench of the two level synchronizer.
+Above is the corresponding wave form of the above test bench.
+--------------------------------------------------------part4----------------------------------------------------------------------
+The timing analysis is carried with respect to the 0.13 micrometer technology file, Where the effective channel length of the CMOS device is 0.13 micrometre.
+Fig 4.1 shows the details of the d flip-flop
+Fig 4.1 dfnt1 standard cell
+Since the scope of this report only deals with the timing the cell dimensions, and power analysis are ignored. Fig 4.2 shows the filtered details of the timing analysis part.
+Fig 4.2
+*Non linear delay models are valid for >130nm. Since 13micrometer technology is implied, NLDM is still valid.
+1. Propagation delays
+From the above references tR=PropR+RampR×Load(fF), tF=PropF+RampF×Load(fF)
+Tr= 184+(2.13*2.3)=189.313ps
+Tf= 205+(1.67*2.4)=209.08ps
+Fig 1.6 shows the timing violations.
+Where the units are picoseconds.
+* Recovery and the removal analysis are for asynchronous and the setup and hold are for synchronous.
+3. Aperture time
+Rise Aperture time =(setup time + hold time) => 119+191 = 390 picosec.
+Fall Aperture time =(setup time + hold time) => 307+147 = 454 picosec.
+4. Contamination delay:
+Indicates the amount of time needed for a change in (flip-flop clock input) to (result in the initial change) at the output (q).
+Form the above wave form of two level synchronizer system with two D flip-flops
+The contamination delays of two levels are as follows.
+Contamination delay of first cell= 5 ps,
+Contamination delay of 2nd cell= 15 ps. (*markers in the wave form)
+Total contamination delay(clock to ouput)= 20 ps
+*That is system takes 20 ps initially to respond to the first input. Which means any change in input/ data <20ps will not the processed.
+4. Propagation delay (clock to output): Clock-to-output delay ( )/propagation delay ( ) is the time that a flip-flop takes to change its output after the rising/falling edge of the clock.
+From the above figure where lck is the main clock, aclk is data, q2 is the output.
+So,
+propagation delay(clock to output) = 10.1ps
+(*note the marker in the figure).
+Which signifies, that any change in the data/input pin <10.1ps cannot be processed till the final output of the system the data will be lost due to (clock to output) propagation delay.
+5. Setup time constraint (max clock freq)
+Setup time constraint
+Tpc-q + Tsetup+Tcombi <= Tp
+(propagation delay(clock to output) of 1st flip-flop) + (setup time of 2nd flip-flop) + (propagation time of any combinational circuit if in between, in this circuit it is 0) < (period of clock)
+Setup time constraint indicates the max frequency that a circuit can on.
+Setup time constraint= (10.1) + (199) = 209.1ps
+Max frequency = 4.782 giga Hz
+Hold time constraint (minimum delay constraint) Tcc-q+Tcombi >=Thold
+(contamination delay(clock to output) of 1st flipflop) + (propagation time of any combinational circuit if in between, in this circuit it is 0) >= (hold time)
+Hold time constraint = (20)+(0) <(191)
+Which signifies that the hold time constraint is not satisfied, this could be one the of the main reason for the setup and hold time violation warnings under the transition console of the waveform stimulation model(xilinx), fig 1.6
+*since the locks are considered to be ideal clock skew is 0.
+Which means that there is no clock delay between the both levels.
+Path analysis
+The only path for data propagation is (aclck-D1-q1-D2-q2)
+Hence it is the shortest and the longest (critical) path of the circuit
+In next section the corrections for the hold time constraints is performed using delay elements.
+-----------------------------------------------------part4.2-----------------------------------------------------------------------
+From the outcome of the p4 section of this report, it is known that the design which was adopted for two level synchronizer system(Fig 4.0) was not satisfying the hold time constraint due to which the setup and hold time violations were observed(fig 1.6).
+Fig (4.0)
+Tcc-q+Tcombi >=Thold
+(contamination delay(clock to output) of 1st flipflop) + (propagation time of any combinational circuit if in between, in this circuit it is 0) >= (hold time)
+Hold time constraint = (20)+(0) <(191)
+In order to satisfy the hold time/ (minimum delay) constraint equation,
+Hold time constraint = (20)+(0)+(delay element) >=(191)
+Delay element>=(191)-(20)
+Delay element>=(171)
+By inducing a delay element of greater than 171 pico seconds in between the (two level synchronizer), two D flip flops will satisfy the hold time constraint equation.
+
+
+References:
+https://www.ti.com/lit/an/scaa042a/scaa042a.pdf
+https://vlsiuniverse.blogspot.com/2019/11/metastability-tolerant-designs.html
